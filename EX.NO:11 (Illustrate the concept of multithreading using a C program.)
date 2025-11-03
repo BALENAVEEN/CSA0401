@@ -1,0 +1,36 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+// Thread function
+void* thread_function(void* arg) {
+    int thread_no = *((int*)arg);
+    for (int i = 1; i <= 5; i++) {
+        printf("Thread %d is running... Iteration %d\n", thread_no, i);
+        sleep(1); // simulate work
+    }
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t t1, t2;
+    int thread1_id = 1, thread2_id = 2;
+
+    // Create two threads
+    if (pthread_create(&t1, NULL, thread_function, &thread1_id)) {
+        printf("Error creating thread 1\n");
+        exit(1);
+    }
+    if (pthread_create(&t2, NULL, thread_function, &thread2_id)) {
+        printf("Error creating thread 2\n");
+        exit(1);
+    }
+
+    // Wait for threads to finish
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+
+    printf("Both threads have completed execution.\n");
+    return 0;
+}
