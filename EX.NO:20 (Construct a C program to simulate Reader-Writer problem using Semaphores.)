@@ -1,0 +1,75 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+sem_t mutex;       // Controls access to readcount
+sem_t wrt;         // Controls writer (exclusive access)
+int readcount = 0; // Number of readers currently reading
+int data = 0;      // Shared data
+
+void* reader(void* arg) {
+    int f = (int)arg;
+
+    while (1) {
+        sem_wait(&mutex);       // Entry section for reader
+        readcount++;
+        if (readcount == 1)
+            sem_wait(&wrt);     // First reader locks writer
+        sem_post(&mutex);       // Allow other readers to enter
+
+        printf("Reader %d is reading data = %d\n", f, data);
+        sleep(1);
+
+        sem_wait(&mutex);       // Exit section for reader
+        readcount--;
+        if (readcount == 0)
+            sem_post(&wrt);     // Last reader unlocks writer
+        sem_post(&mutex);
+
+        sleep(1);
+    }
+}
+
+void* writer(void* arg) {
+    int f = (int)arg;
+
+    while (1) {
+        sem_wait(&wrt);         // Writer gets exclusive access
+        data++;
+        printf("Writer %d modified data to %d\n", f, data);
+        sleep(1);
+        sem_post(&wrt);
+
+        sleep(1);
+    }
+}
+
+int main() {
+    pthread_t r[5], w[2];
+    int i;
+
+    sem_init(&mutex, 0, 1);
+    sem_init(&wrt, 0, 1);
+
+    // Create reader threads
+    for (i = 0; i < 5; i++)
+        pthread_create(&r[i], NULL, reader, (void*)i + 1);
+
+    // Create writer threads
+    for (i = 0; i < 2; i++)
+        pthread_create(&w[i], NULL, writer, (void*)i + 1);
+
+    // Wait indefinitely
+    for (i = 0; i < 5; i++)
+        pthread_join(r[i], NULL);
+
+    for (i = 0; i < 2; i++)
+        pthread_join(w[i], NULL);
+
+    sem_destroy(&mutex);
+    sem_destroy(&wrt);
+
+    return 0;
+}
