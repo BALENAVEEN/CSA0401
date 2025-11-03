@@ -1,0 +1,92 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <unistd.h>
+
+#define N 5               // Number of philosophers
+#define THINKING 0
+#define HUNGRY 1
+#define EATING 2
+#define LEFT (phnum + 4) % N
+#define RIGHT (phnum + 1) % N
+
+int state[N];
+pthread_mutex_t mutex;
+pthread_mutex_t chopstick[N];
+
+// Function Declaration
+void* philosopher(void* num);
+void take_chopstick(int);
+void put_chopstick(int);
+void test(int);
+
+int main() {
+    pthread_t thread_id[N];
+    int i, phil_num[N];
+
+    // Initialize mutexes
+    pthread_mutex_init(&mutex, NULL);
+    for (i = 0; i < N; i++)
+        pthread_mutex_init(&chopstick[i], NULL);
+
+    // Create threads for philosophers
+    for (i = 0; i < N; i++) {
+        phil_num[i] = i;
+        pthread_create(&thread_id[i], NULL, philosopher, &phil_num[i]);
+        printf("Philosopher %d is thinking...\n", i + 1);
+    }
+
+    // Join threads
+    for (i = 0; i < N; i++)
+        pthread_join(thread_id[i], NULL);
+
+    return 0;
+}
+
+void* philosopher(void* num) {
+    while (1) {
+        int* i = num;
+        sleep(1);
+        take_chopstick(*i);
+        sleep(1);
+        put_chopstick(*i);
+    }
+}
+
+void take_chopstick(int phnum) {
+    pthread_mutex_lock(&mutex);
+
+    state[phnum] = HUNGRY;
+    printf("Philosopher %d is Hungry\n", phnum + 1);
+
+    test(phnum);
+
+    pthread_mutex_unlock(&mutex);
+
+    pthread_mutex_lock(&chopstick[phnum]);  // Wait until allowed to eat
+    sleep(1);
+}
+
+void put_chopstick(int phnum) {
+    pthread_mutex_lock(&mutex);
+
+    state[phnum] = THINKING;
+    printf("Philosopher %d puts down chopsticks and starts thinking\n", phnum + 1);
+
+    test(LEFT);
+    test(RIGHT);
+
+    pthread_mutex_unlock(&mutex);
+}
+
+void test(int phnum) {
+    if (state[phnum] == HUNGRY && 
+        state[LEFT] != EATING && 
+        state[RIGHT] != EATING) {
+        
+        state[phnum] = EATING;
+        printf("Philosopher %d takes chopsticks and starts EATING\n", phnum + 1);
+        pthread_mutex_unlock(&chopstick[phnum]);
+    }
+}
